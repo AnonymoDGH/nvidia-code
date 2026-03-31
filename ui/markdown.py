@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                    NVIDIA CODE - Markdown Renderer Pro                       ║
@@ -1311,9 +1311,9 @@ class Patterns:
     # Inline
     INLINE_CODE = re.compile(r'`([^`]+)`')
     INLINE_MATH = re.compile(r'\$([^$]+)\$')
-    BOLD_ITALIC = re.compile(r'(\*\*\*|___)(.+?)\1')
-    BOLD = re.compile(r'(\*\*|__)(.+?)\1')
-    ITALIC = re.compile(r'(?<![*_])(\*|_)(?![*_])(.+?)\1(?![*_])')
+    BOLD_ITALIC = re.compile(r'(\*\*\*|___)(?=\S)((?:(?!\1).)+)\1')
+    BOLD = re.compile(r'(\*\*|__)(?=\S)((?:(?!\1).)+)\1')
+    ITALIC = re.compile(r'(?<![*_])(\*|_)(?![*_\s])((?:(?!\1).)+?)\1(?![*_])')
     STRIKETHROUGH = re.compile(r'~~(.+?)~~')
     UNDERLINE = re.compile(r'<u>(.+?)</u>', re.IGNORECASE)
     MARK = re.compile(r'<mark>(.+?)</mark>', re.IGNORECASE)
@@ -1324,8 +1324,8 @@ class Patterns:
     DEL = re.compile(r'<del>(.+?)</del>', re.IGNORECASE)
     
     # Links e imágenes
-    IMAGE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
-    LINK = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    IMAGE = re.compile(r'!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)')
+    LINK = re.compile(r'(?<!!)\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)')
     LINK_REF = re.compile(r'\[([^\]]+)\]\[([^\]]*)\]')
     LINK_REF_DEF = re.compile(r'^\[([^\]]+)\]:\s*(.+)$')
     AUTOLINK = re.compile(r'<(https?://[^>]+)>')
@@ -2501,7 +2501,17 @@ class MarkdownRenderer:
         stripped = line.strip()
         if not stripped:
             return False
-        return stripped.startswith('|') or '|' in stripped
+        pipe_count = stripped.count('|')
+        if pipe_count < 2:
+            return False
+        
+        if stripped.startswith('|') and stripped.endswith('|'):
+            return True
+        
+        if pipe_count >= 3:
+            return True
+        
+        return False
     
     # ─────────────────────────────────────────────────────────────────────────
     # Manejadores de bloques
@@ -3075,13 +3085,13 @@ class MarkdownRenderer:
         
         # Imágenes (antes que links)
         text = Patterns.IMAGE.sub(
-            lambda m: self._format_image(m.group(1), m.group(2)),
+            lambda m: self._format_image(m.group(1), m.group(2), m.group(3) if len(m.groups()) >= 3 else None),
             text
         )
         
         # Links
         text = Patterns.LINK.sub(
-            lambda m: self._format_link(m.group(1), m.group(2)),
+            lambda m: self._format_link(m.group(1), m.group(2), m.group(3) if len(m.groups()) >= 3 else None),
             text
         )
         
@@ -3200,14 +3210,20 @@ class MarkdownRenderer:
             f"{AnsiCode.RESET}"
         )
     
-    def _format_image(self, alt: str, url: str) -> str:
+    def _format_image(self, alt: str, url: str, title: str = None) -> str:
         """Formatea una imagen"""
         icon = Icons.IMAGE if self.config.use_icons else "[IMG]"
-        return f"{icon} {self.scheme.text_dim}[{alt}]({url}){AnsiCode.RESET}"
+        display = f"{icon} {self.scheme.text_dim}{alt or 'image'}{AnsiCode.RESET}"
+        if title:
+            display += f" {self.scheme.text_dim}({title}){AnsiCode.RESET}"
+        return display
     
-    def _format_link(self, text: str, url: str) -> str:
+    def _format_link(self, text: str, url: str, title: str = None) -> str:
         """Formatea un link"""
-        return f"{self.scheme.link}{text}{AnsiCode.RESET}"
+        link_text = f"{self.scheme.link}{text}{AnsiCode.RESET}"
+        if title:
+            return f"{link_text} {self.scheme.text_dim}({title}){AnsiCode.RESET}"
+        return link_text
     
     def _format_link_ref(self, text: str, ref: str) -> str:
         """Formatea un link de referencia"""

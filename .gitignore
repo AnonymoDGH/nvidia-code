@@ -1,0 +1,37 @@
+# Secrets
+.env
+.nvidia_code_theme
+.sage_config.yaml
+.sage_memory/
+.autosave/
+.git/
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+*.backup_*
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+
+# Metrics
+metrics/
+
+# Project Specific
+sessions/
+chats/
+icon.ico
+openclaw.py
+main.py.bak

@@ -40,9 +40,9 @@ class Message:
 class ConversationManager:
     """Gestiona el historial de conversación"""
     
-    MAX_MESSAGES = 500  # Límite máximo de mensajes
-    AUTO_COMPACT_THRESHOLD = 400  # Auto-compactar cuando llegue a este número
-    MAX_MESSAGE_LENGTH = 100000  # Límite de caracteres por mensaje
+    MAX_MESSAGES = 50  # Límite máximo de mensajes
+    AUTO_COMPACT_THRESHOLD = 40  # Auto-compactar cuando llegue a este número
+    MAX_MESSAGE_LENGTH = 15000  # Límite de caracteres por mensaje
     
     def __init__(self, session_id: str = None):
         self.session_id = session_id or datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -97,17 +97,17 @@ class ConversationManager:
         important = []
         recent = []
         
-        # Mantener últimos 50 mensajes
-        recent = self.messages[-50:]
+        # Mantener últimos 15 mensajes
+        recent = self.messages[-15:]
         
         # Mantener mensajes con tool_calls (importantes para contexto)
-        important = [m for m in self.messages[:-50] if m.tool_calls]
+        important = [m for m in self.messages[:-15] if m.tool_calls]
         
         # Mantener algunos mensajes del usuario al inicio para contexto
-        user_messages = [m for m in self.messages[:-50] if m.role == "user"][:10]
+        user_messages = [m for m in self.messages[:-15] if m.role == "user"][:3]
         
         # Combinar: importantes + user iniciales + recientes
-        self.messages = important[:20] + user_messages + recent
+        self.messages = important[:5] + user_messages + recent
     
     def add_user_message(self, content: str) -> Message:
         """Añade mensaje del usuario"""

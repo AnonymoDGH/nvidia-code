@@ -31,9 +31,9 @@ MAX_TOKENS = 16384
 TEMPERATURE = 0.18
 TOP_P = 1.00
 
-MAX_TOOL_ITERATIONS = 30
+MAX_TOOL_ITERATIONS = 300
 COMMAND_TIMEOUT = 60
-MAX_AUTO_TURNS = 30
+MAX_AUTO_TURNS = 300
 
 # =============================================================================
 # HEAVY AGENT CONFIGURATION
