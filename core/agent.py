@@ -39,7 +39,7 @@ from .chat_storage import ChatStorage, ChatMetadata
 from .personality import get_personality_manager, PersonalityManager
 from ui.colors import Colors
 from ui.logo import print_logo, print_separator
-from ui.markdown import render_markdown
+from ui.rich_output import print_markdown
 
 try:
     from ui.themes import list_themes, set_theme, get_theme_manager, get_current_theme
@@ -776,9 +776,14 @@ class ColoredFormatter(logging.Formatter):
     
     def format(self, record):
         levelname = record.levelname
-        if levelname in self.COLORS:
-            record.levelname = f"{self.COLORS[levelname]}{levelname:8}{C.RESET}"
-        return super().format(record)
+        msg = record.getMessage()
+        if levelname == "INFO":
+            return f"{C.DIM}{msg}{C.RESET}"
+        if levelname == "WARNING":
+            return f"{C.BRIGHT_YELLOW}! {msg}{C.RESET}"
+        if levelname in ("ERROR", "CRITICAL"):
+            return f"{C.BRIGHT_RED}x {msg}{C.RESET}"
+        return f"{self.COLORS.get(levelname, C.DIM)}{levelname.lower()}: {msg}{C.RESET}"
 
 
 class JSONFormatter(logging.Formatter):
@@ -821,7 +826,7 @@ class AgentLogger:
         
         console_handler = logging.StreamHandler()
         console_handler.setLevel(getattr(logging, console_level.upper()))
-        console_handler.setFormatter(ColoredFormatter('%(levelname)s │ %(message)s'))
+        console_handler.setFormatter(ColoredFormatter('%(message)s'))
         
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
@@ -926,11 +931,9 @@ class ToolDisplayManager:
         
         display_name = self.format_tool_name(tool_name)
         args_str = self.format_arguments(args)
+        primary, _, _ = self._get_theme_colors()
         tool_line = f"{display_name}{args_str}"
-        
-        self.print_box_start()
-        content = f"{C.DIM}⏳{C.RESET}  {C.BRIGHT_CYAN}{tool_line}{C.RESET}"
-        print(f"{C.DIM}│{C.RESET} {content}", end='', flush=True)
+        print(f"{C.DIM}• running{C.RESET} {primary}{tool_line}{C.RESET}", flush=True)
     
     def print_success(self, tool_name: str, args: Dict[str, Any],
                       elapsed: float, result_size: int):
@@ -941,10 +944,8 @@ class ToolDisplayManager:
         size_str = f"{result_size:,}" if result_size > 1000 else str(result_size)
         status_text = f"({elapsed:.2f}s, {size_str} chars)"
         
-        content = f"{C.BRIGHT_GREEN}✓{C.RESET}  {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.DIM}{status_text}{C.RESET}"
-        padded = self._pad_to_width(content, self.width - 2)
-        
-        print(f"\r{C.DIM}│{C.RESET} {padded}{C.DIM}│{C.RESET}")
+        _, success_color, _ = self._get_theme_colors()
+        print(f"{success_color}✓ done{C.RESET} {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.DIM}{status_text}{C.RESET}")
     
     def print_error(self, tool_name: str, args: Dict[str, Any], error_msg: str):
         display_name = self.format_tool_name(tool_name)
@@ -954,34 +955,26 @@ class ToolDisplayManager:
         if len(error_msg) > 60:
             error_msg = error_msg[:57] + "..."
         
-        content = f"{C.BRIGHT_RED}✗{C.RESET}  {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.BRIGHT_RED}{error_msg}{C.RESET}"
-        padded = self._pad_to_width(content, self.width - 2)
-        
-        print(f"\r{C.DIM}│{C.RESET} {padded}{C.DIM}│{C.RESET}")
+        _, _, error_color = self._get_theme_colors()
+        print(f"{error_color}✗ fail{C.RESET} {C.BRIGHT_CYAN}{tool_line}{C.RESET} {error_color}{error_msg}{C.RESET}")
     
     def print_timeout(self, tool_name: str, args: Dict[str, Any], timeout_seconds: float):
         display_name = self.format_tool_name(tool_name)
         args_str = self.format_arguments(args)
         tool_line = f"{display_name}{args_str}"
         
-        content = f"{C.BRIGHT_YELLOW}⏱{C.RESET}  {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.BRIGHT_YELLOW}Timeout ({timeout_seconds}s){C.RESET}"
-        padded = self._pad_to_width(content, self.width - 2)
-        
-        print(f"\r{C.DIM}│{C.RESET} {padded}{C.DIM}│{C.RESET}")
+        print(f"{C.BRIGHT_YELLOW}⏱ timeout{C.RESET} {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.BRIGHT_YELLOW}({timeout_seconds}s){C.RESET}")
     
     def print_cancelled(self, tool_name: str, args: Dict[str, Any]):
         display_name = self.format_tool_name(tool_name)
         args_str = self.format_arguments(args)
         tool_line = f"{display_name}{args_str}"
         
-        content = f"{C.DIM}⊗{C.RESET}  {C.BRIGHT_CYAN}{tool_line}{C.RESET} {C.DIM}Cancelado{C.RESET}"
-        padded = self._pad_to_width(content, self.width - 2)
-        
-        print(f"\r{C.DIM}│{C.RESET} {padded}{C.DIM}│{C.RESET}")
+        print(f"{C.DIM}⊗ cancel{C.RESET} {C.BRIGHT_CYAN}{tool_line}{C.RESET}")
     
     def print_retry(self, tool_name: str, attempt: int, max_attempts: int):
-        content = f"{C.BRIGHT_YELLOW}↻{C.RESET}  Reintentando {tool_name} ({attempt}/{max_attempts})..."
-        self.print_box_line(content)
+        content = f"{C.BRIGHT_YELLOW}↻ retry{C.RESET} {tool_name} ({attempt}/{max_attempts})"
+        print(content)
     
     def print_result_preview(self, result: str, max_lines: int = 8):
         if len(result) < 100:
@@ -990,41 +983,35 @@ class ToolDisplayManager:
         print(f"{C.DIM}│{C.RESET}")
         
         try:
-            rendered = render_markdown(result)
-            lines = rendered.split('\n')[:max_lines]
+            lines = result.split('\n')[:max_lines]
             
             for line in lines:
                 if len(line) > MAX_LINE_LENGTH:
                     line = line[:MAX_LINE_LENGTH - 3] + "..."
-                self.print_box_line(line, padding=False)
+                print(f"{C.DIM}  {line}{C.RESET}")
             
-            if len(rendered.split('\n')) > max_lines:
-                self.print_box_line(f"{C.DIM}... (ver más arriba){C.RESET}", padding=False)
+            if len(result.split('\n')) > max_lines:
+                print(f"{C.DIM}  ... (preview){C.RESET}")
                 
         except Exception:
             lines = result.split('\n')[:max_lines]
             for line in lines:
                 if len(line) > MAX_LINE_LENGTH:
                     line = line[:MAX_LINE_LENGTH - 3] + "..."
-                self.print_box_line(f"{C.DIM}{line}{C.RESET}", padding=False)
+                print(f"{C.DIM}  {line}{C.RESET}")
     
     def print_batch_header(self, total_tools: int):
-        content = f"{C.BRIGHT_CYAN}🔧 Ejecutando {total_tools} herramientas...{C.RESET}"
-        self.print_box_start()
-        self.print_box_line(content)
-        self.print_box_separator()
+        content = f"{C.BRIGHT_CYAN}tools{C.RESET} ejecutando {total_tools}..."
+        print(f"\n{content}")
     
     def print_batch_summary(self, successful: int, failed: int, total_time: float):
-        self.print_box_separator()
-        
         if failed == 0:
             status = f"{C.BRIGHT_GREEN}✓ Todas exitosas{C.RESET}"
         else:
             status = f"{C.BRIGHT_YELLOW}⚠ {successful} exitosas, {failed} fallidas{C.RESET}"
         
-        content = f"{status} {C.DIM}({total_time:.2f}s total){C.RESET}"
-        self.print_box_line(content)
-        self.print_box_end()
+        content = f"{status} {C.DIM}({total_time:.2f}s total){C.RESET}\n"
+        print(content)
 
 
 class CommandCompleter:
@@ -1818,8 +1805,7 @@ class CommandHandler:
             self.agent.system_prompt = self.agent._build_system_prompt()
             self.agent.response_cache.clear()
             
-            print(f"\n{C.BRIGHT_GREEN}✅ Modelo cambiado:{C.RESET}")
-            print(f"   {C.BRIGHT_CYAN}{model.name}{C.RESET} {model.specialty}")
+            print(f"\n{C.BRIGHT_GREEN}model:{C.RESET} {C.BRIGHT_CYAN}{model.name}{C.RESET} {model.specialty}")
             
             capabilities = []
             if model.supports_tools:
@@ -1828,9 +1814,9 @@ class CommandHandler:
                 capabilities.append(f"{C.BRIGHT_MAGENTA}🧠 Thinking{C.RESET}")
             
             if capabilities:
-                print(f"   {' | '.join(capabilities)}")
+                print(f"{C.DIM}caps:{C.RESET} {' | '.join(capabilities)}")
             elif not model.supports_tools:
-                print(f"   {C.BRIGHT_YELLOW}⚠️  Sin soporte de herramientas{C.RESET}")
+                print(f"{C.BRIGHT_YELLOW}caps:{C.RESET} sin soporte de herramientas")
             
             print()
             
@@ -1844,27 +1830,19 @@ class CommandHandler:
         )
     
     def _cmd_list_models(self, args: str) -> CommandResult:
-        width = 75
-        print(f"\n{C.NVIDIA_GREEN}╔{'═' * width}╗{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}║{C.RESET} {C.BOLD}{C.BRIGHT_WHITE}🤖 MODELOS DISPONIBLES{C.RESET}{' ' * (width - 24)}{C.NVIDIA_GREEN}║{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}╠{'═' * width}╣{C.RESET}")
+        print(f"\n{C.BOLD}models{C.RESET} {C.DIM}(use: /model <id>){C.RESET}")
         
         for key, model in AVAILABLE_MODELS.items():
-            current = " ◄" if model.id == self.agent.current_model.id else ""
-            thinking = "🧠" if model.thinking else "  "
-            tools = "🔧" if model.supports_tools else "  "
-            
-            name_display = f"{model.name[:28]:<28}"
-            specialty_display = f"{model.specialty[:22]:<22}"
-            
-            line = f"  {C.BRIGHT_CYAN}{key:3}{C.RESET} [{thinking}{tools}] {name_display} {C.DIM}{specialty_display}{C.RESET}{C.GREEN}{current}{C.RESET}"
-            
-            print(f"{C.NVIDIA_GREEN}║{C.RESET}{line}{' ' * 5}{C.NVIDIA_GREEN}║{C.RESET}")
+            current = f" {C.BRIGHT_GREEN}*{C.RESET}" if model.id == self.agent.current_model.id else ""
+            caps = []
+            if model.thinking:
+                caps.append("think")
+            if model.supports_tools:
+                caps.append("tools")
+            caps_text = ",".join(caps) if caps else "-"
+            print(f"  {C.BRIGHT_CYAN}{key:>2}{C.RESET}  {model.name:<24} {C.DIM}{caps_text:<11} {model.specialty}{C.RESET}{current}")
         
-        print(f"{C.NVIDIA_GREEN}╠{'═' * width}╣{C.RESET}")
-        legend = f" {C.DIM}🧠 = Thinking Mode  🔧 = Herramientas  |  Usa: /model <número>{C.RESET}"
-        print(f"{C.NVIDIA_GREEN}║{C.RESET}{legend}{' ' * 8}{C.NVIDIA_GREEN}║{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}╚{'═' * width}╝{C.RESET}\n")
+        print()
         
         return CommandResult(success=True)
     
@@ -3360,8 +3338,9 @@ FLUJO DE TRABAJO
                 
                 if not self.stream and response and not response.startswith("[Error]"):
                     try:
-                        rendered = render_markdown(response)
-                        print(f"\n{rendered}\n")
+                        print()
+                        print_markdown(response)
+                        print()
                     except Exception:
                         print(f"\n{response}\n")
                 
@@ -3375,10 +3354,12 @@ FLUJO DE TRABAJO
     
     def _build_prompt(self) -> str:
         prompt_color = C.NVIDIA_GREEN
+        current_theme_name = ""
         if HAS_THEMES:
             try:
                 tm = get_theme_manager()
                 prompt_color = tm.rgb_to_ansi(tm.current_theme.primary)
+                current_theme_name = tm.current_theme_name
             except:
                 pass
         
@@ -3402,9 +3383,13 @@ FLUJO DE TRABAJO
         else:
             rate_indicator = ""
         
-        line1 = f"\n{prompt_color}┌─{C.RESET} {model_display}{mode_str}{rate_indicator} {prompt_color}─{C.RESET}"
-        line2 = f"{prompt_color}└─>{C.RESET} "
-        
+        if current_theme_name == "claude_code":
+            line1 = f"\n{C.DIM}model{C.RESET} {model_display}{mode_str}{rate_indicator}"
+            line2 = f"{prompt_color}›{C.RESET} "
+        else:
+            line1 = f"\n{prompt_color}┌─{C.RESET} {model_display}{mode_str}{rate_indicator} {prompt_color}─{C.RESET}"
+            line2 = f"{prompt_color}└─>{C.RESET} "
+
         return f"{line1}\n{line2}"
     
     def _print_welcome(self):
@@ -3880,14 +3865,14 @@ Ejemplos:
         if args.command:
             response = agent.chat(args.command)
             try:
-                print(render_markdown(response))
+                print_markdown(response)
             except:
                 print(response)
         
         elif args.file:
             response = agent.process_file(args.file, args.instruction)
             try:
-                print(render_markdown(response))
+                print_markdown(response)
             except:
                 print(response)
         

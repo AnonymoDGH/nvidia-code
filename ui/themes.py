@@ -48,6 +48,27 @@ class Theme:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 THEMES: Dict[str, Theme] = {
+    "claude_code": Theme(
+        name="Claude Code",
+        description="Minimalista, limpio y enfocado en texto",
+        primary=(232, 122, 65),
+        secondary=(245, 172, 130),
+        accent=(255, 214, 186),
+        gradient_start=(248, 165, 120),
+        gradient_end=(232, 122, 65),
+        agent_1=(232, 122, 65),
+        agent_2=(199, 141, 107),
+        agent_3=(170, 120, 96),
+        synthesizer=(255, 192, 140),
+        success=(110, 185, 120),
+        error=(220, 95, 95),
+        warning=(230, 180, 80),
+        info=(120, 170, 220),
+        dim=(138, 128, 122),
+        logo_style="minimal",
+        separator_char="─",
+    ),
+
     "nvidia": Theme(
         name="NVIDIA Classic",
         description="El tema clásico verde NVIDIA",
@@ -310,8 +331,8 @@ class ThemeManager:
     """Gestor de temas"""
     
     def __init__(self):
-        self.current_theme_name = "nvidia"
-        self.current_theme = THEMES["nvidia"]
+        self.current_theme_name = "claude_code"
+        self.current_theme = THEMES["claude_code"]
         self.config_file = Path(".nvidia_code_theme")
         self._load_saved_theme()
     
