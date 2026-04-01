@@ -3375,10 +3375,12 @@ FLUJO DE TRABAJO
     
     def _build_prompt(self) -> str:
         prompt_color = C.NVIDIA_GREEN
+        current_theme_name = ""
         if HAS_THEMES:
             try:
                 tm = get_theme_manager()
                 prompt_color = tm.rgb_to_ansi(tm.current_theme.primary)
+                current_theme_name = tm.current_theme_name
             except:
                 pass
         
@@ -3402,9 +3404,13 @@ FLUJO DE TRABAJO
         else:
             rate_indicator = ""
         
-        line1 = f"\n{prompt_color}┌─{C.RESET} {model_display}{mode_str}{rate_indicator} {prompt_color}─{C.RESET}"
-        line2 = f"{prompt_color}└─>{C.RESET} "
-        
+        if current_theme_name == "claude_code":
+            line1 = f"\n{C.DIM}model{C.RESET} {model_display}{mode_str}{rate_indicator}"
+            line2 = f"{prompt_color}›{C.RESET} "
+        else:
+            line1 = f"\n{prompt_color}┌─{C.RESET} {model_display}{mode_str}{rate_indicator} {prompt_color}─{C.RESET}"
+            line2 = f"{prompt_color}└─>{C.RESET} "
+
         return f"{line1}\n{line2}"
     
     def _print_welcome(self):
