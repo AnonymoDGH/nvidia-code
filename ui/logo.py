@@ -268,34 +268,25 @@ def render_welcome_screen(
     ver = version or VERSION
     directory = directory or os.getcwd()
 
-    LW = 48
-    RW = 55
+    LW = 46
+    RW = 50
     TW = LW + RW + 3
 
     if recent_chats is None:
         recent_chats = []
     if tips is None:
         tips = [
-            "Run /help to see all commands",
-            "Use /model <n> to switch models",
-            "Try /themes to change look",
-            "Use /heavy for multi-AI mode",
+            "/help  comandos disponibles",
+            "/model <n>  cambiar modelo",
+            "/themes <name>  cambiar estilo",
+            "/heavy  activar modo colaborativo",
         ]
 
     dir_display = directory
     if len(dir_display) > LW - 6:
         dir_display = "..." + dir_display[-(LW - 9):]
 
-    modes = []
-    if heavy_mode:
-        modes.append("Heavy")
-    if auto_mode:
-        modes.append("Auto")
-    if plugins_count > 0:
-        modes.append(f"{plugins_count} plugins")
-    modes_text = " | ".join(modes) if modes else ""
-
-    header = f" NVIDIA Code v{ver} "
+    header = f" NVIDIA Code • v{ver} "
     hfill = TW - len(header)
     hl = hfill // 2
     hr = hfill - hl
@@ -310,98 +301,57 @@ def render_welcome_screen(
             f"{border}│{C.RESET} {left_fmt}{' ' * lpad}{dim}│{C.RESET} {right_fmt}{' ' * rpad}{border}│{C.RESET}"
         )
 
-    def empty():
-        R("", "", "", "")
-
-    def cpad(text: str, width: int) -> str:
-        p = max(0, (width - len(text)) // 2)
-        return " " * p
-
-    eye = [
-        "    ▄█████████▄    ",
-        "  ███████████████  ",
-        " ████▀▀   ████████",
-        "████ ████▄  ███████",
-        "███ ████████ ██████",
-        "███ ████████ ██████",
-        "████ ████▀  ███████",
-        " ████▄▄  █████████",
-        "  ███████████████  ",
-        "    ▀█████████▀    ",
-    ]
-    eye_pad = (LW - 19) // 2
-
     left_data = []
     right_data = []
 
-    left_data.append(("", ""))
-    right_data.append(("", ""))
+    left_data.append(("Sesión", f"{C.BOLD}{primary}Sesión{C.RESET}"))
+    right_data.append(("Atajos", f"{C.BOLD}{primary}Atajos{C.RESET}"))
 
-    welcome = "Welcome to NVIDIA Code!"
-    wp = cpad(welcome, LW)
-    welcome_plain = wp + welcome
-    welcome_fmt = f"{wp}{C.BOLD}{welcome}{C.RESET}"
-    left_data.append((welcome_plain, welcome_fmt))
-    right_data.append(("Tips for getting started", f"{C.BOLD}{primary}Tips for getting started{C.RESET}"))
+    left_data.append(("─" * (LW - 2), f"{dim}{'─' * (LW - 2)}{C.RESET}"))
+    right_data.append(("─" * (RW - 2), f"{dim}{'─' * (RW - 2)}{C.RESET}"))
 
     left_data.append(("", ""))
-    right_data.append(("", ""))
-
-    for i, eline in enumerate(eye):
-        plain = " " * eye_pad + eline
-        fmt = " " * eye_pad + _gradient_line(eline, start_rgb, end_rgb)
-        left_data.append((plain, fmt))
-        if i < len(tips):
-            tip = tips[i]
-            right_data.append((f" * {tip}", f" {dim}*{C.RESET} {tip}"))
-        else:
-            right_data.append(("", ""))
-
-    left_data.append(("", ""))
-    right_data.append(("", ""))
+    right_data.append((tips[0], f"{dim}•{C.RESET} {tips[0]}"))
 
     model_plain = f"{model_name} | {model_specialty}"
-    mp = cpad(model_plain, LW)
-    model_plain_padded = mp + model_plain
-    model_fmt = f"{mp}{primary}{C.BOLD}{model_name}{C.RESET}{dim} | {model_specialty}{C.RESET}"
+    model_plain_padded = model_plain
+    model_fmt = f"{primary}{C.BOLD}{model_name}{C.RESET}{dim} • {model_specialty}{C.RESET}"
     left_data.append((model_plain_padded, model_fmt))
-    sep_line = "─" * (RW - 2)
-    right_data.append((sep_line, f"{dim}{sep_line}{C.RESET}"))
+    right_data.append((tips[1], f"{dim}•{C.RESET} {tips[1]}"))
 
-    dp = cpad(dir_display, LW)
-    dir_plain_padded = dp + dir_display
-    dir_fmt = f"{dp}{dim}{dir_display}{C.RESET}"
+    dir_plain_padded = dir_display
+    dir_fmt = f"{dim}{dir_display}{C.RESET}"
     left_data.append((dir_plain_padded, dir_fmt))
-    right_data.append(("", ""))
+    right_data.append((tips[2], f"{dim}•{C.RESET} {tips[2]}"))
+
+    status_line = "Normal"
+    if heavy_mode:
+        status_line = "Heavy"
+    if auto_mode:
+        status_line = f"{status_line} + Auto"
+    if plugins_count > 0:
+        status_line = f"{status_line} | plugins:{plugins_count}"
+    left_data.append(("Modo", f"{primary}{status_line}{C.RESET}"))
+    right_data.append((tips[3], f"{dim}•{C.RESET} {tips[3]}"))
 
     left_data.append(("", ""))
-    right_data.append(("Recent activity", f"{C.BOLD}{primary}Recent activity{C.RESET}"))
-
-    if modes_text:
-        mp2 = cpad(modes_text, LW)
-        modes_plain_padded = mp2 + modes_text
-        parts_fmt = []
-        for m in modes:
-            if m == "Heavy":
-                parts_fmt.append(f"{C.BRIGHT_MAGENTA}{m}{C.RESET}")
-            elif m == "Auto":
-                parts_fmt.append(f"{C.BRIGHT_GREEN}{m}{C.RESET}")
-            else:
-                parts_fmt.append(f"{C.BRIGHT_CYAN}{m}{C.RESET}")
-        modes_fmt = f"{mp2}" + f"{dim} | {C.RESET}".join(parts_fmt)
-        left_data.append((modes_plain_padded, modes_fmt))
-    else:
-        left_data.append(("", ""))
+    right_data.append(("", ""))
+    left_data.append(("Actividad reciente", f"{C.BOLD}{primary}Actividad reciente{C.RESET}"))
+    right_data.append(("Comandos rápidos", f"{C.BOLD}{primary}Comandos rápidos{C.RESET}"))
 
     if recent_chats:
         for chat in recent_chats[:3]:
             name = chat.get('name', 'Unknown')[:25]
             msgs = chat.get('messages', 0)
-            plain = f" * {name} ({msgs} msgs)"
-            fmt = f" {dim}*{C.RESET} {name} {dim}({msgs} msgs){C.RESET}"
-            right_data.append((plain, fmt))
+            plain = f"• {name} ({msgs})"
+            fmt = f"{dim}•{C.RESET} {name} {dim}({msgs}){C.RESET}"
+            left_data.append((plain, fmt))
     else:
-        right_data.append((" No recent activity", f" {dim}No recent activity{C.RESET}"))
+        left_data.append(("Sin actividad reciente", f"{dim}Sin actividad reciente{C.RESET}"))
+
+    quick_cmds = ["/new", "/clear", "/save", "/exit"]
+    for cmd in quick_cmds:
+        right_data.append((cmd, f"{primary}{cmd}{C.RESET}"))
 
     left_data.append(("", ""))
     right_data.append(("", ""))
@@ -516,6 +466,11 @@ def render_banner(text: str, style: str = "simple") -> str:
 
 
 def print_logo(style: str = None, gradient_type: str = "diagonal"):
+    if style is None and HAS_THEMES:
+        try:
+            style = getattr(get_current_theme(), "logo_style", None)
+        except:
+            style = None
     if style == "welcome":
         print(render_welcome_screen())
     else:
