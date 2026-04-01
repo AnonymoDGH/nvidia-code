@@ -260,11 +260,9 @@ def render_welcome_screen(
     recent_chats: List[dict] = None,
     version: str = None,
 ) -> str:
-    start_rgb, end_rgb = _get_theme_gradient()
     colors = _get_theme_colors()
     primary = _rgb(*colors['primary'])
     dim = _rgb(*colors['dim'])
-    border = _rgb(*start_rgb)
     ver = version or VERSION
     directory = directory or os.getcwd()
 
@@ -286,6 +284,26 @@ def render_welcome_screen(
     if len(dir_display) > LW - 6:
         dir_display = "..." + dir_display[-(LW - 9):]
 
+    status_line = "normal"
+    if heavy_mode:
+        status_line = "heavy"
+    if auto_mode:
+        status_line = f"{status_line}+auto"
+    if plugins_count > 0:
+        status_line = f"{status_line} · plugins:{plugins_count}"
+
+    lines_out = [
+        "",
+        f"{primary}{C.BOLD}NVIDIA Code{C.RESET}{dim} v{ver}{C.RESET}",
+        f"{dim}model:{C.RESET} {model_name} · {model_specialty}",
+        f"{dim}mode:{C.RESET} {status_line}",
+        f"{dim}dir:{C.RESET} {dir_display}",
+        f"{dim}commands:{C.RESET} /help  /model  /themes  /heavy  /exit",
+    ]
+
+    if recent_chats:
+        first = recent_chats[0]
+        lines_out.append(f"{dim}last:{C.RESET} {first.get('name', 'chat')} ({first.get('messages', 0)} msgs)")
     header = f" NVIDIA Code • v{ver} "
     hfill = TW - len(header)
     hl = hfill // 2
@@ -356,20 +374,7 @@ def render_welcome_screen(
     left_data.append(("", ""))
     right_data.append(("", ""))
 
-    mx = max(len(left_data), len(right_data))
-    while len(left_data) < mx:
-        left_data.append(("", ""))
-    while len(right_data) < mx:
-        right_data.append(("", ""))
-
-    for i in range(mx):
-        lp, lf = left_data[i]
-        rp, rf = right_data[i]
-        R(lp, lf, rp, rf)
-
-    lines_out.append(_gradient_line(f"╰{'─' * TW}╯", start_rgb, end_rgb))
-
-    return "\n".join(lines_out)
+    return "\n".join(lines_out) + "\n"
 
 def render_logo(style: str = None, gradient_type: str = "diagonal") -> str:
     start_rgb, end_rgb = _get_theme_gradient()

@@ -776,9 +776,14 @@ class ColoredFormatter(logging.Formatter):
     
     def format(self, record):
         levelname = record.levelname
-        if levelname in self.COLORS:
-            record.levelname = f"{self.COLORS[levelname]}{levelname:8}{C.RESET}"
-        return super().format(record)
+        msg = record.getMessage()
+        if levelname == "INFO":
+            return f"{C.DIM}{msg}{C.RESET}"
+        if levelname == "WARNING":
+            return f"{C.BRIGHT_YELLOW}! {msg}{C.RESET}"
+        if levelname in ("ERROR", "CRITICAL"):
+            return f"{C.BRIGHT_RED}x {msg}{C.RESET}"
+        return f"{self.COLORS.get(levelname, C.DIM)}{levelname.lower()}: {msg}{C.RESET}"
 
 
 class JSONFormatter(logging.Formatter):
@@ -821,7 +826,7 @@ class AgentLogger:
         
         console_handler = logging.StreamHandler()
         console_handler.setLevel(getattr(logging, console_level.upper()))
-        console_handler.setFormatter(ColoredFormatter('%(levelname)s │ %(message)s'))
+        console_handler.setFormatter(ColoredFormatter('%(message)s'))
         
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
@@ -1800,8 +1805,7 @@ class CommandHandler:
             self.agent.system_prompt = self.agent._build_system_prompt()
             self.agent.response_cache.clear()
             
-            print(f"\n{C.BRIGHT_GREEN}✅ Modelo cambiado:{C.RESET}")
-            print(f"   {C.BRIGHT_CYAN}{model.name}{C.RESET} {model.specialty}")
+            print(f"\n{C.BRIGHT_GREEN}model:{C.RESET} {C.BRIGHT_CYAN}{model.name}{C.RESET} {model.specialty}")
             
             capabilities = []
             if model.supports_tools:
@@ -1810,9 +1814,9 @@ class CommandHandler:
                 capabilities.append(f"{C.BRIGHT_MAGENTA}🧠 Thinking{C.RESET}")
             
             if capabilities:
-                print(f"   {' | '.join(capabilities)}")
+                print(f"{C.DIM}caps:{C.RESET} {' | '.join(capabilities)}")
             elif not model.supports_tools:
-                print(f"   {C.BRIGHT_YELLOW}⚠️  Sin soporte de herramientas{C.RESET}")
+                print(f"{C.BRIGHT_YELLOW}caps:{C.RESET} sin soporte de herramientas")
             
             print()
             
@@ -1826,27 +1830,19 @@ class CommandHandler:
         )
     
     def _cmd_list_models(self, args: str) -> CommandResult:
-        width = 75
-        print(f"\n{C.NVIDIA_GREEN}╔{'═' * width}╗{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}║{C.RESET} {C.BOLD}{C.BRIGHT_WHITE}🤖 MODELOS DISPONIBLES{C.RESET}{' ' * (width - 24)}{C.NVIDIA_GREEN}║{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}╠{'═' * width}╣{C.RESET}")
+        print(f"\n{C.BOLD}models{C.RESET} {C.DIM}(use: /model <id>){C.RESET}")
         
         for key, model in AVAILABLE_MODELS.items():
-            current = " ◄" if model.id == self.agent.current_model.id else ""
-            thinking = "🧠" if model.thinking else "  "
-            tools = "🔧" if model.supports_tools else "  "
-            
-            name_display = f"{model.name[:28]:<28}"
-            specialty_display = f"{model.specialty[:22]:<22}"
-            
-            line = f"  {C.BRIGHT_CYAN}{key:3}{C.RESET} [{thinking}{tools}] {name_display} {C.DIM}{specialty_display}{C.RESET}{C.GREEN}{current}{C.RESET}"
-            
-            print(f"{C.NVIDIA_GREEN}║{C.RESET}{line}{' ' * 5}{C.NVIDIA_GREEN}║{C.RESET}")
+            current = f" {C.BRIGHT_GREEN}*{C.RESET}" if model.id == self.agent.current_model.id else ""
+            caps = []
+            if model.thinking:
+                caps.append("think")
+            if model.supports_tools:
+                caps.append("tools")
+            caps_text = ",".join(caps) if caps else "-"
+            print(f"  {C.BRIGHT_CYAN}{key:>2}{C.RESET}  {model.name:<24} {C.DIM}{caps_text:<11} {model.specialty}{C.RESET}{current}")
         
-        print(f"{C.NVIDIA_GREEN}╠{'═' * width}╣{C.RESET}")
-        legend = f" {C.DIM}🧠 = Thinking Mode  🔧 = Herramientas  |  Usa: /model <número>{C.RESET}"
-        print(f"{C.NVIDIA_GREEN}║{C.RESET}{legend}{' ' * 8}{C.NVIDIA_GREEN}║{C.RESET}")
-        print(f"{C.NVIDIA_GREEN}╚{'═' * width}╝{C.RESET}\n")
+        print()
         
         return CommandResult(success=True)
     

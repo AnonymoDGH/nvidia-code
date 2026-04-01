@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from config import API_KEY, API_BASE_URL, MAX_TOKENS, TEMPERATURE, TOP_P
 from models.registry import ModelInfo
 from ui.colors import Colors
-from ui.markdown import render_markdown
+from ui.rich_output import print_markdown
 from ui.spinners import ThinkingSpinner
 
 C = Colors()
@@ -178,7 +178,6 @@ class NVIDIAAPIClient:
         in_thinking = False
         in_reasoning = False
         header_printed = False
-        buffer = ""
         active_spinner = None
         
         try:
@@ -275,19 +274,9 @@ class NVIDIAAPIClient:
                     # Imprimir header solo una vez
                     if not header_printed and content.strip():
                         header_printed = True
-                        header_len = max(1, 40 - len(model.name))
-                        safe_print(f"\n{C.NVIDIA_GREEN}╭─ {model.name} {model.specialty} {'─' * header_len}╮{C.RESET}")
-                        safe_print(f"{C.NVIDIA_GREEN}│{C.RESET}")
+                        safe_print(f"\n{C.DIM}assistant:{C.RESET} {model.name} {model.specialty}")
                     
                     full_content += content
-                    buffer += content
-                    
-                    # Renderizar líneas completas
-                    if '\n' in buffer:
-                        lines = buffer.split('\n')
-                        for ln in lines[:-1]:
-                            self._print_content_line(ln)
-                        buffer = lines[-1]
                 
                 # TOOL CALLS
                 tc_delta = delta.get('tool_calls')
@@ -320,16 +309,13 @@ class NVIDIAAPIClient:
                 active_spinner.stop()
                 clear_line()
             
-            # Renderizar buffer restante
-            if buffer.strip() and header_printed:
-                for ln in buffer.split('\n'):
-                    if ln.strip():
-                        self._print_content_line(ln)
-            
-            # Footer
-            if header_printed:
-                safe_print(f"{C.NVIDIA_GREEN}│{C.RESET}")
-                safe_print(f"{C.NVIDIA_GREEN}╰{'─' * 50}╯{C.RESET}\n")
+            # Render final markdown completo (mucho más fiel para tablas/código)
+            if full_content.strip() and header_printed:
+                if self.use_markdown:
+                    print_markdown(full_content)
+                else:
+                    safe_print(full_content)
+                safe_print("")
             
             # Si no hubo contenido, mostrar mensaje
             if not full_content and not tool_calls:
@@ -379,14 +365,13 @@ class NVIDIAAPIClient:
         """Imprime una línea de contenido con formato"""
         if self.use_markdown and line.strip():
             try:
-                rendered = render_markdown(line)
-                safe_print(f"{C.NVIDIA_GREEN}│{C.RESET} {rendered}")
+                print_markdown(line)
             except:
-                safe_print(f"{C.NVIDIA_GREEN}│{C.RESET} {line}")
+                safe_print(line)
         elif line.strip():
-            safe_print(f"{C.NVIDIA_GREEN}│{C.RESET} {line}")
+            safe_print(line)
         else:
-            safe_print(f"{C.NVIDIA_GREEN}│{C.RESET}")
+            safe_print("")
     
     def _process_response(self, data: Dict, model: ModelInfo) -> APIResponse:
         """Procesa respuesta sin streaming"""
