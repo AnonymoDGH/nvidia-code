@@ -14,12 +14,14 @@ except Exception:
 from .markdown import render_markdown
 
 _console: Optional["Console"] = Console(soft_wrap=True, highlight=False) if HAS_RICH else None
+_console: Optional["Console"] = Console() if HAS_RICH else None
 
 
 def print_markdown(text: str) -> None:
     """Imprime markdown con Rich; si no está disponible, usa el renderizador existente."""
     if HAS_RICH and _console is not None:
         _console.print(Markdown(text, code_theme="ansi_dark", hyperlinks=False))
+        _console.print(Markdown(text, code_theme="monokai", hyperlinks=True))
         return
 
     try:

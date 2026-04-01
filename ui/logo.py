@@ -304,6 +304,75 @@ def render_welcome_screen(
     if recent_chats:
         first = recent_chats[0]
         lines_out.append(f"{dim}last:{C.RESET} {first.get('name', 'chat')} ({first.get('messages', 0)} msgs)")
+    header = f" NVIDIA Code • v{ver} "
+    hfill = TW - len(header)
+    hl = hfill // 2
+    hr = hfill - hl
+
+    lines_out = []
+    lines_out.append(_gradient_line(f"╭{'─' * hl}{header}{'─' * hr}╮", start_rgb, end_rgb))
+
+    def R(left_plain: str, left_fmt: str, right_plain: str, right_fmt: str):
+        lpad = max(0, LW - len(left_plain))
+        rpad = max(0, RW - len(right_plain))
+        lines_out.append(
+            f"{border}│{C.RESET} {left_fmt}{' ' * lpad}{dim}│{C.RESET} {right_fmt}{' ' * rpad}{border}│{C.RESET}"
+        )
+
+    left_data = []
+    right_data = []
+
+    left_data.append(("Sesión", f"{C.BOLD}{primary}Sesión{C.RESET}"))
+    right_data.append(("Atajos", f"{C.BOLD}{primary}Atajos{C.RESET}"))
+
+    left_data.append(("─" * (LW - 2), f"{dim}{'─' * (LW - 2)}{C.RESET}"))
+    right_data.append(("─" * (RW - 2), f"{dim}{'─' * (RW - 2)}{C.RESET}"))
+
+    left_data.append(("", ""))
+    right_data.append((tips[0], f"{dim}•{C.RESET} {tips[0]}"))
+
+    model_plain = f"{model_name} | {model_specialty}"
+    model_plain_padded = model_plain
+    model_fmt = f"{primary}{C.BOLD}{model_name}{C.RESET}{dim} • {model_specialty}{C.RESET}"
+    left_data.append((model_plain_padded, model_fmt))
+    right_data.append((tips[1], f"{dim}•{C.RESET} {tips[1]}"))
+
+    dir_plain_padded = dir_display
+    dir_fmt = f"{dim}{dir_display}{C.RESET}"
+    left_data.append((dir_plain_padded, dir_fmt))
+    right_data.append((tips[2], f"{dim}•{C.RESET} {tips[2]}"))
+
+    status_line = "Normal"
+    if heavy_mode:
+        status_line = "Heavy"
+    if auto_mode:
+        status_line = f"{status_line} + Auto"
+    if plugins_count > 0:
+        status_line = f"{status_line} | plugins:{plugins_count}"
+    left_data.append(("Modo", f"{primary}{status_line}{C.RESET}"))
+    right_data.append((tips[3], f"{dim}•{C.RESET} {tips[3]}"))
+
+    left_data.append(("", ""))
+    right_data.append(("", ""))
+    left_data.append(("Actividad reciente", f"{C.BOLD}{primary}Actividad reciente{C.RESET}"))
+    right_data.append(("Comandos rápidos", f"{C.BOLD}{primary}Comandos rápidos{C.RESET}"))
+
+    if recent_chats:
+        for chat in recent_chats[:3]:
+            name = chat.get('name', 'Unknown')[:25]
+            msgs = chat.get('messages', 0)
+            plain = f"• {name} ({msgs})"
+            fmt = f"{dim}•{C.RESET} {name} {dim}({msgs}){C.RESET}"
+            left_data.append((plain, fmt))
+    else:
+        left_data.append(("Sin actividad reciente", f"{dim}Sin actividad reciente{C.RESET}"))
+
+    quick_cmds = ["/new", "/clear", "/save", "/exit"]
+    for cmd in quick_cmds:
+        right_data.append((cmd, f"{primary}{cmd}{C.RESET}"))
+
+    left_data.append(("", ""))
+    right_data.append(("", ""))
 
     return "\n".join(lines_out) + "\n"
 
